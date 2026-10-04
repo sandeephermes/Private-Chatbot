@@ -18,6 +18,18 @@ export function useEphemeralSession() {
   const [status, setStatus] = useState<Status>('starting')
   const [error, setError] = useState<string | null>(null)
 
+  /**
+   * False during SSR and the first client render, true after mount.
+   *
+   * The session id is minted by the server and fetched over HTTP, so the first
+   * client render cannot know it. Rendering the pre-session UI on the server
+   * would produce markup the client's first pass immediately contradicts —
+   * `disabled` on the textarea, `Starting a private session…` — and React
+   * reports a hydration mismatch it cannot patch. Deferring the interactive UI
+   * until after mount makes the two renders identical.
+   */
+  const [mounted, setMounted] = useState(false)
+
   // Refs, not state: these must be readable inside `fetch` callbacks and
   // unload handlers without triggering a re-render or a stale closure.
   const sessionIdRef = useRef<string | null>(null)
@@ -58,6 +70,9 @@ export function useEphemeralSession() {
 
   // Open a session on mount.
   useEffect(() => {
+    // Flip this before the fetch resolves so the very next render is the
+    // post-mount UI, not the server-matched placeholder.
+    setMounted(true)
     const controller = new AbortController()
 
     void (async () => {
@@ -159,5 +174,5 @@ export function useEphemeralSession() {
     setStatus('ready')
   }, [endOnServer, wipeLocal])
 
-  return { messages, status, error, send, endChat }
+  return { mounted, messages, status, error, send, endChat }
 }

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useEphemeralSession } from '@/lib/useEphemeralSession'
 
 export default function Chat() {
-  const { messages, status, error, send, endChat } = useEphemeralSession()
+  const { mounted, messages, status, error, send, endChat } = useEphemeralSession()
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
@@ -40,6 +40,17 @@ export default function Chat() {
 
   const busy = status === 'streaming'
   const empty = messages.length === 0
+
+  /**
+   * Render nothing until the client has mounted.
+   *
+   * `useEphemeralSession` holds state the server cannot know — the session id,
+   * and therefore whether the composer is enabled. Emitting the shell during
+   * SSR would hand the client markup its first render contradicts. The cost is
+   * one paint with no UI, which is imperceptible and preferable to a hydration
+   * error on every load.
+   */
+  if (!mounted) return null
 
   return (
     <main className="shell">
